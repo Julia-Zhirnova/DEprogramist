@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>OrderForm</class>
+ <widget class="QWidget" name="OrderForm">
+  <layout class="QVBoxLayout" name="main_layout">
+   <item><layout class="QHBoxLayout" name="header">
+    <item><widget class="QLabel" name="lbl_fio"><property name="text"><string></string></property><property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property></widget></item>
+   </layout></item>
+   <item><layout class="QFormLayout" name="form_layout">
+    <item row="0" column="0"><widget class="QLabel" name="lbl_article"><property name="text"><string>Артикул заказа:</string></property></widget></item>
+    <item row="0" column="1"><widget class="QLineEdit" name="line_article"/></item>
+    <item row="1" column="0"><widget class="QLabel" name="lbl_status"><property name="text"><string>Статус:</string></property></widget></item>
+    <item row="1" column="1"><widget class="QComboBox" name="combo_status"/></item>
+    <item row="2" column="0"><widget class="QLabel" name="lbl_address"><property name="text"><string>Адрес пункта:</string></property></widget></item>
+    <item row="2" column="1"><widget class="QComboBox" name="combo_address"/></item>
+    <item row="3" column="0"><widget class="QLabel" name="lbl_date_order"><property name="text"><string>Дата заказа:</string></property></widget></item>
+    <item row="3" column="1"><widget class="QDateEdit" name="date_order"><property name="calendarPopup"><bool>true</bool></property></widget></item>
+    <item row="4" column="0"><widget class="QLabel" name="lbl_date_delivery"><property name="text"><string>Дата выдачи:</string></property></widget></item>
+    <item row="4" column="1"><widget class="QDateEdit" name="date_delivery"><property name="calendarPopup"><bool>true</bool></property></widget></item>
+    <item row="5" column="0"><widget class="QLabel" name="lbl_fio_client"><property name="text"><string>ФИО клиента:</string></property></widget></item>
+    <item row="5" column="1"><widget class="QLineEdit" name="line_fio_client"><property name="readOnly"><bool>true</bool></property></widget></item>
+   </layout></item>
+   <item><layout class="QHBoxLayout" name="btn_layout">
+    <item><widget class="QPushButton" name="btn_save"><property name="text"><string>Сохранить</string></property></widget></item>
+    <item><widget class="QPushButton" name="btn_cancel"><property name="text"><string>Отмена</string></property></widget></item>
+    <item><widget class="QPushButton" name="btn_delete" objectName="btn_delete"><property name="text"><string>Удалить</string></property></widget></item>
+   </layout></item>
+  </layout>
+ </widget>
+</ui>

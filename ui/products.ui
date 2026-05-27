@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ProductsPage</class>
+ <widget class="QWidget" name="ProductsPage">
+  <layout class="QVBoxLayout" name="main_layout">
+   <item><layout class="QHBoxLayout" name="top_panel">
+    <item><widget class="QLabel" name="lbl_fio"><property name="text"><string></string></property><property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property></widget></item>
+    <item><widget class="QPushButton" name="btn_logout"><property name="text"><string>Выход</string></property></widget></item>
+   </layout></item>
+   <item><layout class="QHBoxLayout" name="filters_panel">
+    <item><widget class="QLineEdit" name="line_search"><property name="placeholderText"><string>Поиск...</string></property></widget></item>
+    <item><widget class="QComboBox" name="combo_sort"><item><property name="text"><string>Сортировка: По умолчанию</string></property></item><item><property name="text"><string>По возрастанию (кол-во)</string></property></item><item><property name="text"><string>По убыванию (кол-во)</string></property></item></widget></item>
+    <item><widget class="QComboBox" name="combo_filter"/></item>
+   </layout></item>
+   <item><layout class="QHBoxLayout" name="actions_panel">
+    <item><widget class="QPushButton" name="btn_orders"><property name="text"><string>Заказы</string></property></widget></item>
+    <item><widget class="QPushButton" name="btn_add_product" objectName="btn_add_product"><property name="text"><string>Добавить товар</string></property></widget></item>
+   </layout></item>
+   <item><widget class="QListWidget" name="list_products"/></item>
+  </layout>
+ </widget>
+</ui>

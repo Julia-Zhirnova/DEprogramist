@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>OrdersPage</class>
+ <widget class="QWidget" name="OrdersPage">
+  <layout class="QVBoxLayout" name="main_layout">
+   <item><layout class="QHBoxLayout" name="top_panel">
+    <item><widget class="QLabel" name="lbl_fio"><property name="text"><string></string></property><property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property></widget></item>
+    <item><widget class="QPushButton" name="btn_back"><property name="text"><string>Назад к товарам</string></property></widget></item>
+   </layout></item>
+   <item><layout class="QHBoxLayout" name="actions_panel">
+    <item><widget class="QPushButton" name="btn_add_order"><property name="text"><string>Добавить заказ</string></property></widget></item>
+   </layout></item>
+   <item><widget class="QListWidget" name="list_orders"/></item>
+  </layout>
+ </widget>
+</ui>

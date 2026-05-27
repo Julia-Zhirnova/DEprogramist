@@ -2,7 +2,6 @@ import sys
 import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PyQt5.QtGui import QIcon
-from PyQt5 import uic
 import config
 
 class MainWindow(QMainWindow):
@@ -18,7 +17,9 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
-        self.login_page = uic.loadUi(os.path.join(config.UI_DIR, "login.ui"))
+        # Загружаем страницу входа
+        from pages.login_page import LoginPage
+        self.login_page = LoginPage(self)
         self.stack.addWidget(self.login_page)
 
         self._load_stylesheet()

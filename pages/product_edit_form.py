@@ -20,6 +20,7 @@ class ProductEditForm(QWidget):
         self.ui.btn_save.clicked.connect(self._save)
         self.ui.btn_delete.clicked.connect(self._delete)
         self.ui.btn_load_photo.clicked.connect(self._load_photo)
+        
         self._load_combos()
         
         if self.product_id is None:
@@ -34,10 +35,14 @@ class ProductEditForm(QWidget):
         try:
             conn = db_manager.get_connection()
             cur = conn.cursor()
-            for sql, combo in [('SELECT "category_name " FROM "categories "', self.ui.combo_category),
-                               ('SELECT "manufacturer_name " FROM "manufacturers "', self.ui.combo_manufacturer)]:
-                cur.execute(sql)
-                for r in cur.fetchall(): combo.addItem(r["category_name"])
+            # Используем чистые имена (после fix_db)
+            cur.execute('SELECT id_category, category_name FROM categories')
+            self.combo_categories = {r[1]: r[0] for r in cur.fetchall()}
+            for name in self.combo_categories.keys(): self.ui.combo_category.addItem(name)
+            
+            cur.execute('SELECT id_manufacturer, manufacturer_name FROM manufacturers')
+            self.combo_manufacturers = {r[1]: r[0] for r in cur.fetchall()}
+            for name in self.combo_manufacturers.keys(): self.ui.combo_manufacturer.addItem(name)
             conn.close()
         except Exception as e:
             QMessageBox.critical(self, "❌ Ошибка", f"Не удалось загрузить справочники: {e}")
@@ -51,28 +56,29 @@ class ProductEditForm(QWidget):
                 return
             self.ui.lbl_photo_preview.setPixmap(QPixmap.fromImage(img.scaled(config.PHOTO_MAX_WIDTH, config.PHOTO_MAX_HEIGHT, aspectRatioMode=1)))
             self.current_photo_path = file_path
-            QMessageBox.information(self, "ℹ️ Обработка", f"Изображение приведено к формату {config.PHOTO_MAX_WIDTH}x{config.PHOTO_MAX_HEIGHT} px.")
+            QMessageBox.information(self, "ℹ️ Обработка", f"Изображение приведено к {config.PHOTO_MAX_WIDTH}x{config.PHOTO_MAX_HEIGHT} px.")
 
     def _save(self):
         if self.ui.spin_price.value() < 0 or self.ui.spin_qty.value() < 0:
             QMessageBox.warning(self, "⚠️ Ошибка ввода", "Стоимость и количество не могут быть отрицательными.")
             return
+            
         photo_name = os.path.basename(self.current_photo_path) if self.current_photo_path else None
         if photo_name:
             dst = os.path.join(config.PHOTOS_DIR, photo_name)
             if os.path.abspath(self.current_photo_path) != os.path.abspath(dst):
                 try: shutil.copy2(self.current_photo_path, dst)
                 except shutil.SameFileError: pass
-        
+                
         try:
             conn = db_manager.get_connection()
             cur = conn.cursor()
-            cat_id = cur.execute('SELECT "id_category " FROM "categories " WHERE "category_name "=?', (self.ui.combo_category.currentText(),)).fetchone()["id_category "]
-            man_id = cur.execute('SELECT "id_manufacturer " FROM "manufacturers " WHERE "manufacturer_name "=?', (self.ui.combo_manufacturer.currentText(),)).fetchone()["id_manufacturer "]
+            cat_id = self.combo_categories.get(self.ui.combo_category.currentText())
+            man_id = self.combo_manufacturers.get(self.ui.combo_manufacturer.currentText())
             
-            cur.execute('''INSERT INTO "products " 
-                           ("sku ", "name ", "description ", "price ", "unit ", "category_id ", "manufacturer_id ", 
-                            "supplier_id ", "quantity ", "discount ", "photo_path ")
+            cur.execute('''INSERT INTO products 
+                           (sku, name, description, price, unit, category_id, manufacturer_id, 
+                            supplier_id, quantity, discount, photo_path)
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                         ("NEW-SKU", self.ui.line_name.text(), self.ui.text_description.toPlainText(),
                          self.ui.spin_price.value(), self.ui.line_unit.text(), cat_id, man_id,
@@ -81,7 +87,8 @@ class ProductEditForm(QWidget):
             QMessageBox.information(self, "✅ Успех", "Товар успешно добавлен.")
             self.close()
         except Exception as e:
-            QMessageBox.critical(self, "❌ Ошибка БД", f"Не удалось сохранить товар: {e}")
+            QMessageBox.critical(self, "❌ Ошибка БД", f"Не удалось сохранить: {e}")
 
-    def _delete(self): QMessageBox.information(self, "ℹ️ Удаление", "Проверка наличия в заказах будет на следующем шаге.")
+    def _delete(self):
+        QMessageBox.information(self, "ℹ️ Удаление", "Проверка наличия в заказах будет на следующем шаге.")
     def closeEvent(self, event): self.form_closed.emit(); super().closeEvent(event)

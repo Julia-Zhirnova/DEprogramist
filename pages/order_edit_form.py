@@ -13,7 +13,10 @@ class OrderEditForm(QWidget):
         self.order_id = order_id
         self.ui = uic.loadUi(os.path.join(config.UI_DIR, "order_form.ui"), self)
         
-        # Установка даты заказа на сегодня по умолчанию
+        # 🔹 Скрываем ФИО: оно не требуется по ТЗ для формы заказа
+        self.ui.line_fio_client.hide()
+        self.ui.lbl_fio_client.hide()
+        
         self.ui.date_order.setDate(QDate.currentDate())
         self.ui.lbl_fio.setText(self.main_window.current_fio)
         
@@ -41,9 +44,8 @@ class OrderEditForm(QWidget):
             cur.execute('SELECT id_pickup_point, pickup_point_address FROM pickup_points')
             self.point_map = {r[1]: r[0] for r in cur.fetchall()}
             for addr in self.point_map.keys(): self.ui.combo_address.addItem(addr)
-            conn.close()
         except Exception as e:
-            QMessageBox.critical(self, "❌ Ошибка БД", f"Не загрузились справочники заказов: {e}")
+            QMessageBox.critical(self, "❌ Ошибка БД", f"Не загрузились справочники: {e}")
             
     def _load_order_data(self):
         try:
@@ -55,10 +57,8 @@ class OrderEditForm(QWidget):
                 self.ui.line_article.setText(o['order_articles'])
                 self.ui.combo_status.setCurrentText(o.get('status_name', ''))
                 self.ui.combo_address.setCurrentText(o.get('pickup_point_address', ''))
-                self.ui.date_order.setDate(QDate.fromString(o['date_order'], "yyyy-MM-dd"))
-                self.ui.date_delivery.setDate(QDate.fromString(o['date_delivery'], "yyyy-MM-dd"))
-                self.ui.line_fio_client.setText(o.get('client_fio', ''))
-            conn.close()
+                if o.get('date_order'): self.ui.date_order.setDate(QDate.fromString(o['date_order'], "yyyy-MM-dd"))
+                if o.get('date_delivery'): self.ui.date_delivery.setDate(QDate.fromString(o['date_delivery'], "yyyy-MM-dd"))
         except Exception as e: QMessageBox.critical(self, "❌ Ошибка", str(e))
 
     def _save(self):
@@ -69,15 +69,22 @@ class OrderEditForm(QWidget):
         status_id = self.status_map.get(self.ui.combo_status.currentText())
         point_id = self.point_map.get(self.ui.combo_address.currentText())
         
+        # Автоматически привязываем заказ к текущему пользователю
+        conn = db_manager.get_connection()
+        cur = conn.cursor()
         try:
-            conn = db_manager.get_connection()
-            cur = conn.cursor()
+            cur.execute('SELECT id_user FROM users WHERE fio=?', (self.main_window.current_fio,))
+            res = cur.fetchone()
+            user_id = res[0] if res else 1
+        except: user_id = 1
+        
+        try:
             if self.order_id is None:
                 cur.execute('''INSERT INTO orders 
                                (order_articles, user_id, status_id, pickup_point_id, code, date_order, date_delivery)
                                VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                            (self.ui.line_article.text(), self.main_window.current_fio, status_id, 
-                             point_id, "AUTO", self.ui.date_order.date().toString("yyyy-MM-dd"), 
+                            (self.ui.line_article.text(), user_id, status_id, point_id, 
+                             "AUTO", self.ui.date_order.date().toString("yyyy-MM-dd"), 
                              self.ui.date_delivery.date().toString("yyyy-MM-dd")))
             else:
                 cur.execute('''UPDATE orders SET order_articles=?, status_id=?, pickup_point_id=?, 
@@ -85,18 +92,22 @@ class OrderEditForm(QWidget):
                             (self.ui.line_article.text(), status_id, point_id,
                              self.ui.date_order.date().toString("yyyy-MM-dd"), 
                              self.ui.date_delivery.date().toString("yyyy-MM-dd"), self.order_id))
-            conn.commit(); conn.close()
+            conn.commit()
             QMessageBox.information(self, "✅ Успех", "Заказ сохранён.")
             self.close()
-        except Exception as e: QMessageBox.critical(self, "❌ Ошибка БД", str(e))
-
+        except Exception as e: 
+            conn.rollback()
+            QMessageBox.critical(self, "❌ Ошибка БД", str(e))
+            
     def _delete(self):
+        conn = db_manager.get_connection()
         try:
-            conn = db_manager.get_connection()
             conn.cursor().execute('DELETE FROM orders WHERE id_order=?', (self.order_id,))
-            conn.commit(); conn.close()
+            conn.commit()
             QMessageBox.information(self, "✅ Успех", "Заказ удалён.")
             self.close()
-        except Exception as e: QMessageBox.critical(self, "❌ Ошибка БД", str(e))
+        except Exception as e: 
+            conn.rollback()
+            QMessageBox.critical(self, "❌ Ошибка БД", str(e))
         
     def closeEvent(self, event): self.form_closed.emit(); super().closeEvent(event)

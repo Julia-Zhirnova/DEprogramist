@@ -35,7 +35,6 @@ class ProductEditForm(QWidget):
         try:
             conn = db_manager.get_connection()
             cur = conn.cursor()
-            # Используем чистые имена (после fix_db)
             cur.execute('SELECT id_category, category_name FROM categories')
             self.combo_categories = {r[1]: r[0] for r in cur.fetchall()}
             for name in self.combo_categories.keys(): self.ui.combo_category.addItem(name)
@@ -43,7 +42,6 @@ class ProductEditForm(QWidget):
             cur.execute('SELECT id_manufacturer, manufacturer_name FROM manufacturers')
             self.combo_manufacturers = {r[1]: r[0] for r in cur.fetchall()}
             for name in self.combo_manufacturers.keys(): self.ui.combo_manufacturer.addItem(name)
-            conn.close()
         except Exception as e:
             QMessageBox.critical(self, "❌ Ошибка", f"Не удалось загрузить справочники: {e}")
 
@@ -70,8 +68,8 @@ class ProductEditForm(QWidget):
                 try: shutil.copy2(self.current_photo_path, dst)
                 except shutil.SameFileError: pass
                 
+        conn = db_manager.get_connection()
         try:
-            conn = db_manager.get_connection()
             cur = conn.cursor()
             cat_id = self.combo_categories.get(self.ui.combo_category.currentText())
             man_id = self.combo_manufacturers.get(self.ui.combo_manufacturer.currentText())
@@ -83,12 +81,12 @@ class ProductEditForm(QWidget):
                         ("NEW-SKU", self.ui.line_name.text(), self.ui.text_description.toPlainText(),
                          self.ui.spin_price.value(), self.ui.line_unit.text(), cat_id, man_id,
                          1, self.ui.spin_qty.value(), self.ui.spin_discount.value(), photo_name))
-            conn.commit(); conn.close()
+            conn.commit()
             QMessageBox.information(self, "✅ Успех", "Товар успешно добавлен.")
             self.close()
-        except Exception as e:
+        except Exception as e: 
+            conn.rollback()
             QMessageBox.critical(self, "❌ Ошибка БД", f"Не удалось сохранить: {e}")
 
-    def _delete(self):
-        QMessageBox.information(self, "ℹ️ Удаление", "Проверка наличия в заказах будет на следующем шаге.")
+    def _delete(self): QMessageBox.information(self, "ℹ️ Удаление", "Проверка наличия в заказах будет на следующем шаге.")
     def closeEvent(self, event): self.form_closed.emit(); super().closeEvent(event)

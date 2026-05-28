@@ -2,14 +2,14 @@ import sqlite3
 import config
 
 def get_connection():
-    if not hasattr(config, "DB_PATH") or not config.DB_PATH:
-        raise FileNotFoundError("DB_PATH не задан в config.py")
-    conn = sqlite3.connect(config.DB_PATH)
+    """Возвращает новое безопасное соединение с БД."""
+    conn = sqlite3.connect(config.DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row
     return conn
 
 def row_to_dict(row):
-    """Преобразует sqlite3.Row в dict, автоматически убирая пробелы в именах колонок"""
+    """Безопасно преобразует sqlite3.Row в dict, убирая пробелы в ключах."""
     if row is None: return {}
     return {k.strip(): v for k, v in zip(row.keys(), row)}

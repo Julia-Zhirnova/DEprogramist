@@ -14,9 +14,10 @@ class LoginPage(QWidget):
         self.ui.btn_login.clicked.connect(self.on_login)
         self.ui.btn_guest.clicked.connect(self.on_guest)
         
-        # Скрываем метки ошибок при старте
-        self.ui.lbl_login_err.hide()
-        self.ui.lbl_pass_err.hide()
+        # Стилизуем метки ошибок
+        for lbl in [self.ui.lbl_login_err, self.ui.lbl_pass_err]:
+            lbl.setStyleSheet("color: #FF0000; font-weight: bold; font-style: italic;")
+            lbl.hide()
         
     def on_login(self):
         login = self.ui.login_input.text().strip()
@@ -26,16 +27,20 @@ class LoginPage(QWidget):
         self.ui.lbl_login_err.hide()
         self.ui.lbl_pass_err.hide()
         
-        # Валидация пустых полей
+        # Валидация: показываем ОБЕ ошибки одновременно, если оба поля пустые
+        errors = []
         if not login:
             self.ui.lbl_login_err.setText("Логин не может быть пустым")
             self.ui.lbl_login_err.show()
-            return
+            errors.append("login")
         if not password:
             self.ui.lbl_pass_err.setText("Пароль не может быть пустым")
             self.ui.lbl_pass_err.show()
-            return
-        
+            errors.append("password")
+            
+        if errors:
+            return  # Прерываем, если есть ошибки
+            
         # Проверка в БД
         try:
             conn = db_manager.get_connection()
@@ -48,12 +53,10 @@ class LoginPage(QWidget):
             conn.close()
             
             if user:
-                # Успешный вход
                 self.main_window.current_role = user["role_id"]
                 self.main_window.current_fio = user["fio"]
                 self._proceed_to_products()
             else:
-                # Ошибка авторизации
                 QMessageBox.critical(
                     self,
                     "❌ Ошибка авторизации",
@@ -67,14 +70,11 @@ class LoginPage(QWidget):
             )
     
     def on_guest(self):
-        """Вход в режиме гостя"""
         self.main_window.current_role = config.ROLE_GUEST
         self.main_window.current_fio = "Гость"
         self._proceed_to_products()
     
     def _proceed_to_products(self):
-        """Переключение на страницу товаров"""
-        # Импортируем здесь, чтобы избежать циклического импорта
         from pages.products_page import ProductsPage
         products_page = ProductsPage(self.main_window)
         self.main_window.switch_to(products_page)

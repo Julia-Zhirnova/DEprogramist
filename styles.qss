@@ -1,11 +1,22 @@
+/* Цветовые константы для быстрой смены стиля */
+:root {
+    --color-bg-main: #FFFFFF;
+    --color-bg-add: #7FFF00;
+    --color-accent: #00FA9A;
+    --color-discount-high: #2E8B57;
+    --color-no-stock: #ADD8E6;
+    --color-error: #FF0000;
+}
+
 QMainWindow, QWidget {
-    background-color: #FFFFFF;
+    background-color: var(--color-bg-main, #FFFFFF);
     font-family: "Times New Roman";
     font-size: 10pt;
 }
+
 QPushButton {
-    background-color: #00FA9A;
-    border: 1px solid #00CC7A;
+    background-color: var(--color-accent, #00FA9A);
+    border: none;
     border-radius: 5px;
     padding: 6px 14px;
     font-family: "Times New Roman";
@@ -14,23 +25,34 @@ QPushButton {
 }
 QPushButton:hover { background-color: #00D985; }
 QPushButton:pressed { background-color: #00B36E; }
-QPushButton.secondary { background-color: #7FFF00; border-color: #66CC00; }
+
+QPushButton.secondary {
+    background-color: var(--color-bg-add, #7FFF00);
+    border: none;
+}
 QPushButton.secondary:hover { background-color: #66CC00; }
-QPushButton.danger { background-color: #FF6B6B; border-color: #E05555; color: #FFFFFF; }
+
+QPushButton.danger {
+    background-color: #FF6B6B;
+    border: none;
+    color: #FFFFFF;
+}
 QPushButton.danger:hover { background-color: #E05555; }
+
 QLineEdit, QComboBox, QDateEdit, QSpinBox, QDoubleSpinBox, QTextEdit {
-    background-color: #FFFFFF;
+    background-color: var(--color-bg-main, #FFFFFF);
     border: 1px solid #CCCCCC;
     border-radius: 4px;
     padding: 5px;
     font-family: "Times New Roman";
 }
 QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border: 2px solid #00FA9A;
+    border: 2px solid var(--color-accent, #00FA9A);
 }
+
 QListWidget {
-    background-color: #FFFFFF;
-    border: 1px solid #CCCCCC;
+    background-color: var(--color-bg-main, #FFFFFF);
+    border: none;
     border-radius: 5px;
     padding: 5px;
 }
@@ -38,6 +60,19 @@ QListWidget::item {
     padding: 10px;
     border-bottom: 1px solid #F0F0F0;
 }
-QListWidget::item:selected { background-color: #E0F7FA; color: #000000; }
-QLabel.error { color: #FF0000; font-size: 9pt; font-style: italic; }
-QStackedWidget, QFrame, QScrollArea { background-color: transparent; border: none; }
+QListWidget::item:selected {
+    background-color: #E0F7FA;
+    color: #000000;
+}
+
+QLabel.error {
+    color: var(--color-error, #FF0000);
+    font-size: 9pt;
+    font-style: italic;
+    font-weight: bold;
+}
+
+QStackedWidget, QFrame, QScrollArea {
+    background-color: transparent;
+    border: none;
+}

@@ -8,3 +8,8 @@ def get_connection():
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row
     return conn
+
+def row_to_dict(row):
+    """Преобразует sqlite3.Row в dict, автоматически убирая пробелы в именах колонок"""
+    if row is None: return {}
+    return {k.strip(): v for k, v in zip(row.keys(), row)}

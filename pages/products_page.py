@@ -1,169 +1,152 @@
 import os
 from PyQt5.QtWidgets import QWidget, QListWidgetItem, QLabel, QMessageBox
-from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtGui import QPixmap, QFont, QColor
+from PyQt5.QtCore import Qt
 from PyQt5 import uic
-import config
-import db_manager
+import config, db_manager
 
 class ProductsPage(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
         self.ui = uic.loadUi(os.path.join(config.UI_DIR, "products.ui"), self)
+        self.products_data = []
+        self.edit_form_open = False
         
         self._setup_header()
         self._setup_role_visibility()
-        self._load_products()
         self._connect_signals()
-        self.edit_form_open = False
-        
+        self._load_products()
+
     def _setup_header(self):
-        title_label = QLabel("Каталог товаров")
-        title_label.setFont(QFont(config.FONT_FAMILY, 14, QFont.Bold))
-        title_label.setStyleSheet("color: #000000; margin: 5px 0 10px 0;")
+        title = QLabel("Каталог товаров")
+        title.setFont(QFont(config.FONT_FAMILY, 14, QFont.Bold))
+        title.setStyleSheet("color: #000000; margin: 5px 0 10px 0;")
         
-        logo_label = QLabel()
+        logo = QLabel()
         if os.path.exists(config.LOGO_PATH):
-            pixmap = QPixmap(config.LOGO_PATH)
-            if not pixmap.isNull():
-                logo_label.setPixmap(pixmap.scaledToHeight(50, mode=1))
-        else:
-            logo_label.setText("[ЛОГОТИП]")
+            px = QPixmap(config.LOGO_PATH)
+            if not px.isNull(): logo.setPixmap(px.scaledToHeight(50, mode=1))
+        else: logo.setText("[ЛОГОТИП]")
             
         from PyQt5.QtWidgets import QHBoxLayout
-        header_layout = QHBoxLayout()
-        header_layout.addWidget(logo_label)
-        header_layout.addStretch()
-        header_layout.addWidget(self.ui.lbl_fio)
-        header_layout.addWidget(self.ui.btn_logout)
-        
-        main_layout = self.ui.main_layout
-        main_layout.insertLayout(0, header_layout)
-        main_layout.insertWidget(1, title_label)
-        
+        lay = QHBoxLayout()
+        lay.addWidget(logo); lay.addStretch()
+        lay.addWidget(self.ui.lbl_fio); lay.addWidget(self.ui.btn_logout)
+        self.ui.main_layout.insertLayout(0, lay)
+        self.ui.main_layout.insertWidget(1, title)
+
     def _setup_role_visibility(self):
-        role = self.main_window.current_role
         self.ui.lbl_fio.setText(self.main_window.current_fio if self.main_window.current_fio != "Гость" else "")
-        self.ui.lbl_fio.setVisible(role != config.ROLE_GUEST)
-        self.ui.btn_logout.setVisible(role != config.ROLE_GUEST)
+        self.ui.lbl_fio.setVisible(self.main_window.current_fio != "Гость")
+        self.ui.btn_logout.setVisible(True)
         
-        if role in [config.ROLE_GUEST, config.ROLE_CLIENT]:
-            self.ui.line_search.hide()
-            self.ui.combo_sort.hide()
-            self.ui.combo_filter.hide()
-            self.ui.btn_orders.hide()
-            self.ui.btn_add_product.hide()
+        if self.main_window.current_role in [config.ROLE_GUEST, config.ROLE_CLIENT]:
+            for w in [self.ui.line_search, self.ui.combo_sort, self.ui.combo_filter, self.ui.btn_orders, self.ui.btn_add_product]: w.hide()
         else:
             self._load_suppliers_filter()
             
-        if role == config.ROLE_MANAGER:
-            self.ui.btn_add_product.hide()
-            
+        if self.main_window.current_role == config.ROLE_MANAGER: self.ui.btn_add_product.hide()
         self.ui.btn_orders.setText("Просмотреть заказы")
-        
+
     def _load_suppliers_filter(self):
         self.ui.combo_filter.clear()
         self.ui.combo_filter.addItem("Все поставщики")
         try:
             conn = db_manager.get_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT supplier_name FROM suppliers ORDER BY supplier_name")
-            for row in cur.fetchall():
-                self.ui.combo_filter.addItem(row["supplier_name"])
+            for r in conn.cursor().execute("SELECT supplier_name FROM suppliers ORDER BY supplier_name").fetchall():
+                self.ui.combo_filter.addItem(r["supplier_name"])
             conn.close()
         except Exception as e:
-            QMessageBox.warning(self, "⚠️ Ошибка", f"Не удалось загрузить поставщиков: {e}")
-            
+            print(f"⚠️ Фильтр поставщиков: {e}")
+
     def _load_products(self):
-        self.ui.list_products.clear()
         try:
             conn = db_manager.get_connection()
             cur = conn.cursor()
-            query = """SELECT p.*, c.category_name, m.manufacturer_name, s.supplier_name
-                       FROM products p
-                       LEFT JOIN categories c ON p.category_id = c.id_category
-                       LEFT JOIN manufacturers m ON p.manufacturer_id = m.id_manufacturer
-                       LEFT JOIN suppliers s ON p.supplier_id = s.id_supplier
-                       ORDER BY p.name"""
-            cur.execute(query)
-            products = cur.fetchall()
+            cur.execute('''SELECT p.*, c.category_name, m.manufacturer_name, s.supplier_name
+                           FROM products p
+                           LEFT JOIN categories c ON p.category_id = c.id_category
+                           LEFT JOIN manufacturers m ON p.manufacturer_id = m.id_manufacturer
+                           LEFT JOIN suppliers s ON p.supplier_id = s.id_supplier
+                           ORDER BY p.name''')
+            self.products_data = [db_manager.row_to_dict(r) for r in cur.fetchall()]
             conn.close()
-            
-            for prod in products:
-                item = QListWidgetItem()
-                price_html = f"{prod['price']:.2f} ₽"
-                if prod['discount'] and prod['discount'] > 0:
-                    final = prod['price'] * (1 - prod['discount'] / 100)
-                    price_html = f"<s style='color:red'>{prod['price']:.2f} ₽</s> <b style='color:black'>{final:.2f} ₽</b>"
-                    
-                photo_name = prod['photo_path'] or 'picture.png'
-                card = (f"<b>{prod['name']}</b><br/>"
-                        f"<small>Категория: {prod['category_name']} | Производитель: {prod['manufacturer_name']} | Поставщик: {prod['supplier_name']}</small><br/>"
-                        f"<small>Описание: {prod['description'][:70]}...</small><br/>"
-                        f"<b>Цена: {price_html}</b> | Скидка: {prod['discount']}% | Остаток: {prod['qty']} {prod['unit']}<br/>"
-                        f"<small>Фото: {photo_name}</small>")
-                item.setText(card)
-                
-                if prod['discount'] and prod['discount'] > config.DISCOUNT_THRESHOLD:
-                    item.setBackground(config.COLOR_DISCOUNT_HIGH)
-                elif prod['qty'] == 0:
-                    item.setBackground(config.COLOR_NO_STOCK)
-                    
-                self.ui.list_products.addItem(item)
+            if not self.products_data:
+                print("⚠️ База вернула 0 товаров. Проверьте shoe_store.db и наличие записей.")
         except Exception as e:
-            QMessageBox.critical(self, "❌ Ошибка загрузки", f"Не удалось загрузить товары: {e}")
+            print(f"❌ Ошибка загрузки товаров: {e}")
+            QMessageBox.critical(self, "❌ Ошибка БД", f"Не удалось загрузить товары: {e}")
+            self.products_data = []
+        self._render_products()
+
+    def _render_products(self, data=None):
+        items = data if data is not None else self.products_data
+        self.ui.list_products.clear()
+        
+        for p in items:
+            it = QListWidgetItem()
+            price = f"{p['price']:.2f} ₽"
+            if p.get('discount') and p['discount'] > 0:
+                final = p['price'] * (1 - p['discount'] / 100)
+                price = f"<s style='color:red'>{p['price']:.2f} ₽</s> <b style='color:black'>{final:.2f} ₽</b>"
+                
+            photo = p.get('photo_path') or 'picture.png'
+            html = (f"<b>{p['name']}</b><br/>"
+                    f"<small>Категория: {p.get('category_name','-')} | Производитель: {p.get('manufacturer_name','-')} | Поставщик: {p.get('supplier_name','-')}</small><br/>"
+                    f"<small>Описание: {str(p.get('description',''))[:70]}...</small><br/>"
+                    f"<b>Цена: {price}</b> | Скидка: {p.get('discount',0)}% | Остаток: {p.get('quantity',0)} {p.get('unit','шт.')}<br/>"
+                    f"<small>Фото: {photo}</small>")
+            it.setText(html)
             
-    def _connect_signals(self):
-        self.ui.line_search.textChanged.connect(self._apply_filters)
-        self.ui.combo_sort.currentTextChanged.connect(self._apply_filters)
-        self.ui.combo_filter.currentTextChanged.connect(self._apply_filters)
-        self.ui.btn_orders.clicked.connect(self._show_orders)
-        self.ui.btn_add_product.clicked.connect(self._add_product)
-        self.ui.btn_logout.clicked.connect(self.main_window.reset_session)
-        if self.main_window.current_role == config.ROLE_ADMIN:
-            self.ui.list_products.itemDoubleClicked.connect(self._edit_product)
-            
+            if p.get('discount') and p['discount'] > config.DISCOUNT_THRESHOLD:
+                it.setBackground(QColor(config.COLOR_DISCOUNT_HIGH))
+            elif p.get('quantity') == 0:
+                it.setBackground(QColor(config.COLOR_NO_STOCK))
+            self.ui.list_products.addItem(it)
+
     def _apply_filters(self):
         search = self.ui.line_search.text().lower()
         sort_idx = self.ui.combo_sort.currentIndex()
         supplier = self.ui.combo_filter.currentText()
         
-        visible_items = []
-        for i in range(self.ui.list_products.count()):
-            item = self.ui.list_products.item(i)
-            txt = item.text().lower()
+        filtered = []
+        for p in self.products_data:
+            txt = f"{p.get('name','')} {p.get('description','')} {p.get('category_name','')} {p.get('manufacturer_name','')} {p.get('supplier_name','')} {p.get('unit','')}".lower()
             if search and search not in txt: continue
-            if supplier != "Все поставщики" and supplier not in txt: continue
-            visible_items.append(item)
+            if supplier != "Все поставщики" and supplier != p.get('supplier_name'): continue
+            filtered.append(p)
             
-        self.ui.list_products.clear()
-        for it in visible_items:
-            self.ui.list_products.addItem(it)
-            
-    def _show_orders(self):
-        from pages.orders_page import OrdersPage
-        self.main_window.switch_to(OrdersPage(self.main_window))
-        
-    def _add_product(self):
-        if self.edit_form_open:
-            QMessageBox.warning(self, "⚠️ Ограничение", "Форма редактирования уже открыта. Закройте её, чтобы создать новую.")
-            return
-        self.edit_form_open = True
-        from pages.product_edit_form import ProductEditForm
-        form = ProductEditForm(self.main_window, product_id=None)
-        form.form_closed.connect(self._on_form_closed)
-        self.main_window.switch_to(form)
-        
-    def _edit_product(self, item):
-        if self.edit_form_open:
+        if sort_idx == 1: filtered.sort(key=lambda x: x.get('quantity', 0))
+        elif sort_idx == 2: filtered.sort(key=lambda x: -x.get('quantity', 0))
+        self._render_products(filtered)
+
+    def _connect_signals(self):
+        self.ui.line_search.textChanged.connect(self._apply_filters)
+        self.ui.combo_sort.currentTextChanged.connect(self._apply_filters)
+        self.ui.combo_filter.currentTextChanged.connect(self._apply_filters)
+        self.ui.btn_orders.clicked.connect(lambda: self._show_page("orders"))
+        self.ui.btn_add_product.clicked.connect(lambda: self._show_page("add_product"))
+        self.ui.btn_logout.clicked.connect(self.main_window.reset_session)
+        if self.main_window.current_role == config.ROLE_ADMIN:
+            self.ui.list_products.itemDoubleClicked.connect(lambda: self._show_page("edit_product"))
+
+    def _show_page(self, page):
+        if page in ["add_product", "edit_product"] and self.edit_form_open:
             QMessageBox.warning(self, "⚠️ Ограничение", "Форма редактирования уже открыта.")
             return
         self.edit_form_open = True
         from pages.product_edit_form import ProductEditForm
         form = ProductEditForm(self.main_window, product_id=None)
         form.form_closed.connect(self._on_form_closed)
-        self.main_window.switch_to(form)
-        
+        self.main_window.stack.addWidget(form)
+        self.main_window.stack.setCurrentWidget(form)
+        if page == "orders":
+            from pages.orders_page import OrdersPage
+            self.main_window.stack.addWidget(OrdersPage(self.main_window))
+            self.main_window.stack.setCurrentWidget(self.main_window.stack.widget(self.main_window.stack.count()-1))
+
     def _on_form_closed(self):
         self.edit_form_open = False
         self._load_products()
+        self.main_window.stack.setCurrentWidget(self)

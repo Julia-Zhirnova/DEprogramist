@@ -72,10 +72,7 @@ class ProductsPage(QWidget):
                            ORDER BY p.name''')
             self.products_data = [db_manager.row_to_dict(r) for r in cur.fetchall()]
             conn.close()
-            if not self.products_data:
-                print("⚠️ База вернула 0 товаров. Проверьте shoe_store.db и наличие записей.")
         except Exception as e:
-            print(f"❌ Ошибка загрузки товаров: {e}")
             QMessageBox.critical(self, "❌ Ошибка БД", f"Не удалось загрузить товары: {e}")
             self.products_data = []
         self._render_products()
@@ -98,6 +95,7 @@ class ProductsPage(QWidget):
                     f"<b>Цена: {price}</b> | Скидка: {p.get('discount',0)}% | Остаток: {p.get('quantity',0)} {p.get('unit','шт.')}<br/>"
                     f"<small>Фото: {photo}</small>")
             it.setText(html)
+            it.setData(Qt.UserRole, p.get('id_product')) # Привязка ID
             
             if p.get('discount') and p['discount'] > config.DISCOUNT_THRESHOLD:
                 it.setBackground(QColor(config.COLOR_DISCOUNT_HIGH))
@@ -129,18 +127,22 @@ class ProductsPage(QWidget):
         self.ui.btn_add_product.clicked.connect(lambda: self._show_page("add_product"))
         self.ui.btn_logout.clicked.connect(self.main_window.reset_session)
         if self.main_window.current_role == config.ROLE_ADMIN:
-            self.ui.list_products.itemDoubleClicked.connect(lambda: self._show_page("edit_product"))
+            self.ui.list_products.itemDoubleClicked.connect(lambda item: self._show_page("edit_product", item))
 
-    def _show_page(self, page):
+    def _show_page(self, page, item=None):
         if page in ["add_product", "edit_product"] and self.edit_form_open:
             QMessageBox.warning(self, "⚠️ Ограничение", "Форма редактирования уже открыта.")
             return
         self.edit_form_open = True
+        
+        item_id = item.data(Qt.UserRole) if item and page == "edit_product" else None
+        
         from pages.product_edit_form import ProductEditForm
-        form = ProductEditForm(self.main_window, product_id=None)
+        form = ProductEditForm(self.main_window, product_id=item_id)
         form.form_closed.connect(self._on_form_closed)
         self.main_window.stack.addWidget(form)
         self.main_window.stack.setCurrentWidget(form)
+        
         if page == "orders":
             from pages.orders_page import OrdersPage
             self.main_window.stack.addWidget(OrdersPage(self.main_window))

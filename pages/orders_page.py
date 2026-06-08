@@ -1,5 +1,6 @@
 import os
 from PyQt5.QtWidgets import QWidget, QListWidgetItem, QMessageBox
+from PyQt5.QtCore import Qt
 from PyQt5 import uic
 import config, db_manager
 
@@ -15,7 +16,7 @@ class OrdersPage(QWidget):
         self.ui.btn_back.clicked.connect(self._go_back)
         
         if self.main_window.current_role == config.ROLE_ADMIN:
-            self.ui.btn_add_order.clicked.connect(self._add_order)
+            self.ui.btn_add_order.clicked.connect(lambda: self._show_form(order_id=None))
             self.ui.list_orders.itemDoubleClicked.connect(self._edit_order)
         else:
             self.ui.btn_add_order.hide()
@@ -26,8 +27,7 @@ class OrdersPage(QWidget):
         try:
             conn = db_manager.get_connection()
             cur = conn.cursor()
-            cur.execute('''SELECT o.id_order, o.order_articles, o.date_order, o.date_delivery,
-                                  s.status_name, pp.pickup_point_address as address, u.fio as client_fio
+            cur.execute('''SELECT o.*, s.status_name, pp.pickup_point_address as address, u.fio as client_fio
                             FROM orders o
                             LEFT JOIN statuses s ON o.status_id = s.id_status
                             LEFT JOIN pickup_points pp ON o.pickup_point_id = pp.id_pickup_point
@@ -50,28 +50,23 @@ class OrdersPage(QWidget):
                           f"<small>Пункт: {o.get('address', '-')}</small><br/>"
                           f"<small>Заказан: {o.get('date_order', '-')}</small> | "
                           f"<small>Выдача: {o.get('date_delivery', '-')}</small>"))
+            item.setData(Qt.UserRole, o.get('id_order')) # Привязка ID
             self.ui.list_orders.addItem(item)
 
-    def _add_order(self):
+    def _show_form(self, order_id):
         if self.edit_form_open:
             QMessageBox.warning(self, "⚠️ Ограничение", "Форма уже открыта.")
             return
         self.edit_form_open = True
         from pages.order_edit_form import OrderEditForm
-        form = OrderEditForm(self.main_window, order_id=None)
+        form = OrderEditForm(self.main_window, order_id=order_id)
         form.form_closed.connect(self._on_form_closed)
         self.main_window.stack.addWidget(form)
         self.main_window.stack.setCurrentWidget(form)
 
     def _edit_order(self, item):
         if self.edit_form_open or self.main_window.current_role != config.ROLE_ADMIN: return
-        self.edit_form_open = True
-        from pages.order_edit_form import OrderEditForm
-        # Извлекаем ID из текста или храним в данных (упрощённо берём первый номер)
-        form = OrderEditForm(self.main_window, order_id=None) # В продакшене парсим ID
-        form.form_closed.connect(self._on_form_closed)
-        self.main_window.stack.addWidget(form)
-        self.main_window.stack.setCurrentWidget(form)
+        self._show_form(order_id=item.data(Qt.UserRole))
 
     def _on_form_closed(self):
         self.edit_form_open = False
